@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-LIS | ระบบสารสนเทศเพื่อการบริหารสินเชื่อ</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS (Modern UI) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Sarabun', 'sans-serif'] },
+                    colors: {
+                        primary: '#1e3a8a', // Official Navy Blue
+                        secondary: '#475569',
+                        success: '#16a34a',
+                        danger: '#dc2626',
+                        warning: '#d97706'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- PDF & Word Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Firebase SDK (V8 Compat for simple pure HTML implementation) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; overflow-x: hidden; }
+        .hidden-view { display: none !important; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); transition: all 0.3s; }
+        .timeline-step { position: relative; padding-left: 30px; margin-bottom: 20px; }
+        .timeline-step::before { content: ''; position: absolute; left: 6px; top: 0; height: 100%; width: 2px; background: #e5e7eb; }
+        .timeline-step:last-child::before { display: none; }
+        .timeline-icon { position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: #1e3a8a; z-index: 10; border: 2px solid #fff; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col">
+
+    <!-- Top Navbar -->
+    <nav class="bg-primary text-white shadow-md z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-building-columns text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-wide">e-LIS</span>
+                    <span class="ml-2 text-sm text-blue-200 hidden sm:block">| ระบบสารสนเทศเพื่อการบริหารสินเชื่อ</span>
+                </div>
+                <div class="flex items-center" id="nav-user-section" style="display: none;">
+                    <span id="nav-username" class="mr-4 text-sm font-medium"></span>
+                    <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-md text-sm transition shadow"><i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow overflow-y-auto" id="main-container">
+        
+        <!-- ================= VIEW: LOGIN ================= -->
+        <div id="view-login" class="min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
+                <div class="text-center">
+                    <i class="fas fa-shield-halved text-5xl text-primary mb-4"></i>
+                    <h2 class="text-3xl font-extrabold text-gray-900">เข้าสู่ระบบ e-LIS</h2>
+                    <p class="mt-2 text-sm text-gray-600">สำหรับผู้กู้และผู้สนใจสินเชื่อ</p>
+                </div>
+                <div class="mt-8 space-y-6">
+                    <button onclick="loginWithGoogle()" class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-md font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary shadow-sm transition">
+                        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                            <i class="fab fa-google text-red-500"></i>
+                        </span>
+                        ลงทะเบียน / เข้าสู่ระบบด้วย Google
+                    </button>
+                </div>
+                <div class="relative mt-6">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-300"></div></div>
+                    <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">หรือ</span></div>
+                </div>
+                <div>
+                    <button onclick="switchView('view-staff-login')" class="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-primary bg-blue-50 hover:bg-blue-100 transition">
+                        <i class="fas fa-user-tie mr-2 mt-1"></i> สำหรับเจ้าหน้าที่
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: STAFF LOGIN ================= -->
+        <div id="view-staff-login" class="hidden-view min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100 border-t-4 border-t-primary">
+                <div class="text-center">
+                    <i class="fas fa-user-shield text-5xl text-primary mb-4"></i>
+                    <h2 class="text-3xl font-extrabold text-gray-900">ส่วนของเจ้าหน้าที่</h2>
+                </div>
+                <form class="mt-8 space-y-6" onsubmit="event.preventDefault(); staffLogin();">
+                    <div class="rounded-md shadow-sm -space-y-px">
+                        <div>
+                            <label for="staff-username" class="sr-only">ชื่อผู้ใช้</label>
+                            <input id="staff-username" name="username" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm" placeholder="ชื่อผู้ใช้">
+                        </div>
+                        <div>
+                            <label for="staff-password" class="sr-only">รหัสผ่าน</label>
+                            <input id="staff-password" name="password" type="password" required class="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm" placeholder="รหัสผ่าน">
+                        </div>
+                    </div>
+                    <div>
+                        <button type="submit" class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary shadow transition">
+                            เข้าสู่ระบบเจ้าหน้าที่
+                        </button>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button type="button" onclick="switchView('view-login')" class="text-sm text-gray-500 hover:text-primary"><i class="fas fa-arrow-left mr-1"></i> กลับไปหน้าผู้กู้</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: PROFILE SETUP ================= -->
+        <div id="view-profile-setup" class="hidden-view min-h-full py-10 px-4 sm:px-6 lg:px-8 bg-gray-50">
+            <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <h3 class="text-2xl font-bold text-gray-900 mb-6 border-b pb-3"><i class="fas fa-address-card text-primary mr-2"></i>ข้อมูลส่วนตัวผู้กู้</h3>
+                <form id="form-profile" onsubmit="event.preventDefault(); saveProfile();">
+                    <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">คำนำหน้า</label>
+                            <select id="prof-title" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                                <option>นาย</option><option>นาง</option><option>นางสาว</option>
+                            </select>
+                        </div>
+                        <div></div>
+                        <div><label class="block text-sm font-medium text-gray-700">ชื่อจริง</label><input type="text" id="prof-fname" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">นามสกุล</label><input type="text" id="prof-lname" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">เลขบัตรประชาชน</label><input type="text" id="prof-idcard" maxlength="13" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์</label><input type="tel" id="prof-phone" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div class="sm:col-span-2"><label class="block text-sm font-medium text-gray-700">ที่อยู่ปัจจุบัน</label><textarea id="prof-address" rows="3" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm"></textarea></div>
+                    </div>
+                    <div class="mt-8 flex justify-end space-x-3 border-t pt-4">
+                        <button type="button" onclick="skipProfile()" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">ข้ามไปก่อน</button>
+                        <button type="submit" class="bg-primary py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-900">บันทึกข้อมูลและเข้าสู่ระบบ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: BORROWER DASHBOARD ================= -->
+        <div id="view-borrower-dashboard" class="hidden-view py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            
+            <div class="flex justify-between items-end mb-6">
+                <div><h1 class="text-3xl font-bold text-gray-900">แดชบอร์ดผู้กู้</h1><p class="text-gray-500 mt-1">สินเชื่อที่เปิดให้ยื่นคำขอในขณะนี้</p></div>
+                <button onclick="switchView('view-borrower-history')" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md shadow-sm hover:bg-gray-50"><i class="fas fa-history mr-2"></i>ประวัติการยื่น</button>
+            </div>
+
+            <!-- Loan Cards Container -->
+            <div id="borrower-loans-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- ================= VIEW: LOAN DETAIL & APPLY ================= -->
+        <div id="view-loan-apply" class="hidden-view py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+            <button onclick="switchView('view-borrower-dashboard')" class="text-gray-500 hover:text-primary mb-4"><i class="fas fa-arrow-left mr-2"></i>กลับไปแดชบอร์ด</button>
+            <div class="bg-white shadow-md rounded-xl overflow-hidden border border-gray-200">
+                <div class="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-primary" id="apply-loan-title">ชื่อสินเชื่อ</h2>
+                    <span class="bg-primary text-white text-xs px-2 py-1 rounded-full" id="apply-loan-id">ID: </span>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                        <div class="bg-gray-50 p-3 rounded"><p class="text-gray-500 mb-1">วงเงินสูงสุด</p><p class="font-bold text-lg text-green-600" id="apply-loan-limit">0 บาท</p></div>
+                        <div class="bg-gray-50 p-3 rounded"><p class="text-gray-500 mb-1">วันหมดเขต</p><p class="font-bold text-red-600" id="apply-loan-expire">-</p></div>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-2 border-b pb-1">รายละเอียด</h4>
+                        <p class="text-gray-600 text-sm whitespace-pre-line" id="apply-loan-desc">-</p>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-2 border-b pb-1">เงื่อนไขการพิจารณา</h4>
+                        <p class="text-gray-600 text-sm whitespace-pre-line" id="apply-loan-cond">-</p>
+                    </div>
+                    
+                    <form id="dynamic-apply-form" class="mt-8 border-t pt-6 space-y-4">
+                        <h4 class="font-semibold text-gray-800 mb-4"><i class="fas fa-file-signature mr-2 text-primary"></i>ข้อมูลเพิ่มเติมที่ต้องกรอก</h4>
+                        <div id="dynamic-fields-container" class="space-y-4"></div>
+                        
+                        <div class="mt-8 text-center">
+                            <button type="submit" id="btn-submit-apply" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-md shadow-lg transition text-lg"><i class="fas fa-paper-plane mr-2"></i> ยื่นขอสินเชื่อ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: BORROWER HISTORY ================= -->
+        <div id="view-borrower-history" class="hidden-view py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <button onclick="switchView('view-borrower-dashboard')" class="text-gray-500 hover:text-primary mb-4"><i class="fas fa-arrow-left mr-2"></i>กลับไปหน้าสินเชื่อ</button>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">ประวัติและการติดตามสถานะเรียลไทม์</h2>
+            <div id="history-container" class="space-y-4">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- ================= VIEW: STAFF DASHBOARD ================= -->
+        <div id="view-staff-dashboard" class="hidden-view flex h-full">
+            <!-- Sidebar -->
+            <div class="w-64 bg-gray-800 text-white flex flex-col shadow-xl flex-shrink-0">
+                <div class="p-4 border-b border-gray-700">
+                    <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">ระบบจัดการ</p>
+                    <p class="font-bold text-lg"><i class="fas fa-user-shield mr-2"></i>ผู้ดูแลระบบ</p>
+                </div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button onclick="loadStaffDashboard()" class="w-full text-left px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"><i class="fas fa-chart-line w-6 text-center mr-2"></i> ภาพรวมคำขอ</button>
+                    <button onclick="switchView('view-staff-add-loan')" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white transition"><i class="fas fa-plus-circle w-6 text-center mr-2"></i> สร้างสินเชื่อใหม่</button>
+                    <button onclick="loadStaffUsers()" id="menu-manage-users" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white transition"><i class="fas fa-users-cog w-6 text-center mr-2"></i> จัดการเจ้าหน้าที่</button>
+                </nav>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 p-8 bg-gray-100 overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">คำขอสินเชื่อที่รอตรวจสอบ</h2>
+                    <div class="flex space-x-2">
+                        <input type="date" id="filter-date" class="border border-gray-300 rounded px-3 py-1.5 text-sm">
+                        <button onclick="exportReport()" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 shadow"><i class="fas fa-file-pdf mr-2"></i>Export Report</button>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500"><p class="text-gray-500 text-sm">รออัพเดทสถานะ</p><p class="text-2xl font-bold text-gray-800" id="stat-wait">0</p></div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-500"><p class="text-gray-500 text-sm">กำลังตรวจสอบ</p><p class="text-2xl font-bold text-gray-800" id="stat-check">0</p></div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500"><p class="text-gray-500 text-sm">อนุมัติแล้ว</p><p class="text-2xl font-bold text-gray-800" id="stat-appr">0</p></div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-500"><p class="text-gray-500 text-sm">ไม่อนุมัติ</p><p class="text-2xl font-bold text-gray-800" id="stat-rej">0</p></div>
+                </div>
+
+                <!-- Table -->
+                <div class="bg-white rounded-lg shadow overflow-hidden" id="report-content">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้กู้</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินเชื่อ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่ยื่น</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-requests-tbody" class="bg-white divide-y divide-gray-200">
+                            <!-- Injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: STAFF ADD LOAN ================= -->
+        <div id="view-staff-add-loan" class="hidden-view flex h-full">
+            <div class="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
+                <div class="p-4 border-b border-gray-700"><p class="font-bold text-lg"><i class="fas fa-user-shield mr-2"></i>ผู้ดูแลระบบ</p></div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button onclick="switchView('view-staff-dashboard')" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 transition"><i class="fas fa-chart-line w-6 text-center mr-2"></i> ภาพรวมคำขอ</button>
+                    <button class="w-full text-left px-4 py-2 rounded bg-blue-600 text-white transition"><i class="fas fa-plus-circle w-6 text-center mr-2"></i> สร้างสินเชื่อใหม่</button>
+                    <button onclick="loadStaffUsers()" id="menu-manage-users-2" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 transition"><i class="fas fa-users-cog w-6 text-center mr-2"></i> จัดการเจ้าหน้าที่</button>
+                </nav>
+            </div>
+            <div class="flex-1 p-8 bg-gray-100 overflow-y-auto">
+                <div class="bg-white rounded-xl shadow-md p-8 max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4"><i class="fas fa-folder-plus text-primary mr-2"></i>สร้างสินเชื่อใหม่เข้าระบบ</h2>
+                    
+                    <form id="form-add-loan" onsubmit="event.preventDefault(); submitNewLoan();">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">ชื่อสินเชื่อ <span class="text-red-500">*</span></label><input type="text" id="loan-name" required class="w-full border-gray-300 rounded-md border p-2 focus:ring-primary focus:border-primary"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">รหัสสินเชื่อ (เว้นว่างเพื่อรันอัตโนมัติ)</label><input type="text" id="loan-id" placeholder="Ex. LN-2026-001" class="w-full border-gray-300 rounded-md border p-2 bg-gray-50"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">วงเงิน (บาท) <span class="text-red-500">*</span></label><input type="number" id="loan-limit" required class="w-full border-gray-300 rounded-md border p-2 focus:ring-primary"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">อัพโหลด PDF ขออนุญาต</label>
+                                <div class="flex space-x-2">
+                                    <input type="file" id="loan-pdf" accept=".pdf" class="flex-1 border-gray-300 rounded-md border p-1 text-sm">
+                                    <a href="https://drive.google.com/file/d/13mCe6T6Q4pNbd3vrX6t3aYcYlAS6QrxC/view?usp=drivesdk" target="_blank" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm whitespace-nowrap"><i class="fas fa-download mr-1"></i>แบบฟอร์ม</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-1">รายละเอียดสินเชื่อ <span class="text-red-500">*</span></label><textarea id="loan-desc" rows="3" required class="w-full border-gray-300 rounded-md border p-2"></textarea></div>
+                        <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-1">เงื่อนไขการพิจารณา <span class="text-red-500">*</span></label><textarea id="loan-cond" rows="3" required class="w-full border-gray-300 rounded-md border p-2"></textarea></div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1"><i class="far fa-calendar-alt text-primary mr-1"></i>เวลาเริ่มเปิดรับคำขอ <span class="text-red-500">*</span></label><input type="datetime-local" id="loan-start" required class="w-full border-gray-300 rounded-md border p-2"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1"><i class="far fa-calendar-times text-danger mr-1"></i>เวลาหมดเขต <span class="text-red-500">*</span></label><input type="datetime-local" id="loan-end" required class="w-full border-gray-300 rounded-md border p-2"></div>
+                        </div>
+
+                        <!-- Dynamic Form Builder -->
+                        <div class="mb-8 border border-gray-200 rounded-lg p-5">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="font-bold text-gray-800"><i class="fas fa-list-ul mr-2 text-primary"></i>ข้อมูลที่ต้องการเพิ่มเติม (Form Builder)</h4>
+                                <button type="button" onclick="addDynamicField()" class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"><i class="fas fa-plus mr-1"></i>เพิ่มคำถาม</button>
+                            </div>
+                            <div class="flex items-center mb-4 bg-gray-50 p-2 rounded">
+                                <input type="checkbox" id="req-gps" class="mr-2 h-4 w-4 text-primary rounded"><label for="req-gps" class="text-sm text-gray-700">บังคับขอตำแหน่งพิกัด GPS ปัจจุบันของผู้กู้ (ต้องอนุญาต)</label>
+                            </div>
+                            <div id="form-builder-container" class="space-y-3">
+                                <!-- Builder fields go here -->
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-gray-200">
+                            <button type="submit" class="bg-primary hover:bg-blue-900 text-white font-bold py-3 px-8 rounded shadow transition text-lg"><i class="fas fa-save mr-2"></i>สร้างสินเชื่อ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VIEW: STAFF MANAGE USERS ================= -->
+        <div id="view-staff-users" class="hidden-view flex h-full">
+            <div class="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
+                <div class="p-4 border-b border-gray-700"><p class="font-bold text-lg"><i class="fas fa-user-shield mr-2"></i>ผู้ดูแลระบบ</p></div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button onclick="switchView('view-staff-dashboard')" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 transition"><i class="fas fa-chart-line w-6 text-center mr-2"></i> ภาพรวมคำขอ</button>
+                    <button onclick="switchView('view-staff-add-loan')" class="w-full text-left px-4 py-2 rounded text-gray-300 hover:bg-gray-700 transition"><i class="fas fa-plus-circle w-6 text-center mr-2"></i> สร้างสินเชื่อใหม่</button>
+                    <button class="w-full text-left px-4 py-2 rounded bg-blue-600 text-white transition"><i class="fas fa-users-cog w-6 text-center mr-2"></i> จัดการเจ้าหน้าที่</button>
+                </nav>
+            </div>
+            <div class="flex-1 p-8 bg-gray-100 overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">จัดการผู้ใช้งานเจ้าหน้าที่</h2>
+                    <button onclick="openAddStaffModal()" class="bg-primary text-white px-4 py-2 rounded shadow hover:bg-blue-900"><i class="fas fa-user-plus mr-2"></i>เพิ่มเจ้าหน้าที่</button>
+                </div>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อผู้ใช้ / Username</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ตำแหน่ง</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สิทธิ์</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-users-tbody" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // ==========================================
+        // 1. FIREBASE CONFIGURATION (STRICTLY AS PROVIDED)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPZnJtY35WtJm0tKU553d6__eeh399uHU",
+            authDomain: "elis-system.firebaseapp.com",
+            databaseURL: "https://elis-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "elis-system",
+            storageBucket: "elis-system.firebasestorage.app",
+            messagingSenderId: "327878315493",
+            appId: "1:327878315493:web:bb89a044e3ac18f1e7330c",
+            measurementId: "G-B5Q7ZMPJ2Z"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const auth = firebase.auth();
+        const db = firebase.database();
+        const storage = firebase.storage();
+
+        // ==========================================
+        // 2. STATE & VIEW MANAGEMENT
+        // ==========================================
+        let currentUser = null;
+        let userRole = 'guest'; // 'borrower', 'staff', 'admin'
+        let staffPermissions = [];
+        let currentApplyingLoan = null;
+        let builderFields = [];
+
+        function switchView(viewId) {
+            const views = document.querySelectorAll('main > div');
+            views.forEach(v => v.classList.add('hidden-view'));
+            document.getElementById(viewId).classList.remove('hidden-view');
+            window.scrollTo(0, 0);
+        }
+
+        // ==========================================
+        // 3. AUTHENTICATION (GOOGLE & STAFF)
+        // ==========================================
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((result) => {
+                currentUser = result.user;
+                userRole = 'borrower';
+                // Check if profile exists
+                db.ref('users/' + currentUser.uid).once('value').then((snapshot) => {
+                    if (snapshot.exists() && snapshot.val().profileCompleted) {
+                        finalizeLogin(currentUser.displayName || "ผู้กู้");
+                        loadBorrowerDashboard();
+                    } else {
+                        // Ask to fill profile
+                        switchView('view-profile-setup');
+                    }
+                });
+            }).catch((error) => {
+                Swal.fire('ข้อผิดพลาด', error.message, 'error');
+            });
+        }
+
+        function staffLogin() {
+            const user = document.getElementById('staff-username').value;
+            const pass = document.getElementById('staff-password').value;
+
+            // Master Admin Hardcoded check
+            if (user === 'sxaiq54' && pass === 'elis542800') {
+                currentUser = { uid: 'admin_sys', displayName: 'System Admin', email: 'admin@elis.local' };
+                userRole = 'admin';
+                staffPermissions = ['all'];
+                finalizeLogin('ผู้ดูแลระบบ (Admin)');
+                loadStaffDashboard();
+                return;
+            }
+
+            // Check RTDB for dynamic staff
+            db.ref('staff').orderByChild('username').equalTo(user).once('value').then(snap => {
+                if(snap.exists()){
+                    let found = false;
+                    snap.forEach(child => {
+                        const sData = child.val();
+                        if(sData.password === pass) {
+                            if(sData.locked) {
+                                Swal.fire('บัญชีถูกล็อก', 'ถูกล็อกโดยผู้ดูแลระบบ กรุณาติดต่อผู้ดูแลระบบ', 'error');
+                                found = true; return;
+                            }
+                            currentUser = { uid: child.key, displayName: sData.name, email: sData.email };
+                            userRole = 'staff';
+                            staffPermissions = sData.permissions || [];
+                            finalizeLogin(sData.name + ' (เจ้าหน้าที่)');
+                            simulateEmailAlert(sData.email, sData.name, child.key); // Simulate Email Alert Logic
+                            loadStaffDashboard();
+                            found = true;
+                        }
+                    });
+                    if(!found) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
+                } else {
+                    Swal.fire('ผิดพลาด', 'ไม่พบชื่อผู้ใช้นี้ในระบบ', 'error');
+                }
+            });
+        }
+
+        function finalizeLogin(name) {
+            document.getElementById('nav-user-section').style.display = 'flex';
+            document.getElementById('nav-username').innerText = name;
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                currentUser = null; userRole = 'guest'; staffPermissions = [];
+                document.getElementById('nav-user-section').style.display = 'none';
+                switchView('view-login');
+            });
+        }
+
+        // ==========================================
+        // 4. BORROWER PROFILE
+        // ==========================================
+        function saveProfile() {
+            const data = {
+                title: document.getElementById('prof-title').value,
+                fname: document.getElementById('prof-fname').value,
+                lname: document.getElementById('prof-lname').value,
+                idcard: document.getElementById('prof-idcard').value,
+                phone: document.getElementById('prof-phone').value,
+                address: document.getElementById('prof-address').value,
+                profileCompleted: true
+            };
+            db.ref('users/' + currentUser.uid).set(data).then(() => {
+                Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false});
+                finalizeLogin(data.fname);
+                loadBorrowerDashboard();
+            });
+        }
+
+        function skipProfile() {
+            finalizeLogin(currentUser.displayName);
+            loadBorrowerDashboard();
+        }
+
+        // ==========================================
+        // 5. BORROWER DASHBOARD & LOGIC
+        // ==========================================
+        function loadBorrowerDashboard() {
+            switchView('view-borrower-dashboard');
+            const container = document.getElementById('borrower-loans-container');
+            container.innerHTML = '<div class="col-span-full text-center py-10"><i class="fas fa-spinner fa-spin text-3xl text-primary"></i></div>';
+
+            db.ref('loans').on('value', snap => {
+                container.innerHTML = '';
+                const now = new Date().getTime();
+                if(!snap.exists()) { container.innerHTML = '<p class="col-span-full text-center text-gray-500">ยังไม่มีสินเชื่อในระบบ</p>'; return; }
+                
+                snap.forEach(child => {
+                    const loan = child.val();
+                    const startT = new Date(loan.start).getTime();
+                    const endT = new Date(loan.end).getTime();
+                    
+                    // Rule: Disappear 24h after end
+                    if(now > (endT + (24 * 60 * 60 * 1000))) return;
+
+                    let btnHTML = '';
+                    let statusBadge = '';
+
+                    if(now < startT) {
+                        btnHTML = `<button disabled class="w-full mt-4 bg-gray-300 text-gray-600 py-2 rounded cursor-not-allowed">ยังไม่ถึงระยะเวลาเปิดรับ</button>`;
+                        statusBadge = `<span class="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">เร็วๆ นี้</span>`;
+                    } else if (now > endT) {
+                        btnHTML = `<button disabled class="w-full mt-4 bg-gray-300 text-gray-600 py-2 rounded cursor-not-allowed">หมดเขตการยื่นสินเชื่อ</button>`;
+                        statusBadge = `<span class="absolute top-2 right-2 bg-red-100 text-red-800 text-xs px-2 py-1 rounded">หมดเขต</span>`;
+                    } else {
+                        btnHTML = `<button onclick="openApplyLoan('${child.key}')" class="w-full mt-4 bg-primary hover:bg-blue-900 text-white py-2 rounded transition shadow">รายละเอียดและยื่นกู้</button>`;
+                        statusBadge = `<span class="absolute top-2 right-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded border border-green-200"><i class="fas fa-circle text-[8px] mr-1 animate-pulse"></i>เปิดรับสมัคร</span>`;
+                    }
+
+                    container.innerHTML += `
+                        <div class="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-200 p-5 relative transition">
+                            ${statusBadge}
+                            <div class="text-xs text-gray-400 mb-1">${loan.id}</div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">${loan.name}</h3>
+                            <div class="flex items-center text-gray-600 text-sm mb-3">
+                                <i class="fas fa-money-bill-wave text-green-500 w-5"></i> วงเงินสูงสุด ${Number(loan.limit).toLocaleString()} บาท
+                            </div>
+                            <div class="text-xs text-gray-500 mb-2 border-t pt-2">
+                                <i class="far fa-clock mr-1"></i> หมดเขต: ${new Date(loan.end).toLocaleString('th-TH')}
+                            </div>
+                            ${btnHTML}
+                        </div>
+                    `;
+                });
+            });
+
+            // Preload history
+            loadBorrowerHistory();
+        }
+
+        function openApplyLoan(loanKey) {
+            // Must have profile
+            db.ref('users/' + currentUser.uid).once('value').then(snap => {
+                if(!snap.exists() || !snap.val().profileCompleted) {
+                    Swal.fire('ต้องกรอกข้อมูลส่วนตัว', 'กรุณากรอกประวัติส่วนตัวก่อนยื่นขอสินเชื่อ', 'warning').then(()=>{ switchView('view-profile-setup'); });
+                    return;
+                }
+                
+                db.ref('loans/' + loanKey).once('value').then(lsnap => {
+                    const loan = lsnap.val();
+                    currentApplyingLoan = {key: loanKey, ...loan};
+                    
+                    document.getElementById('apply-loan-title').innerText = loan.name;
+                    document.getElementById('apply-loan-id').innerText = "ID: " + loan.id;
+                    document.getElementById('apply-loan-limit').innerText = Number(loan.limit).toLocaleString() + " บาท";
+                    document.getElementById('apply-loan-expire').innerText = new Date(loan.end).toLocaleString('th-TH');
+                    document.getElementById('apply-loan-desc').innerText = loan.desc;
+                    document.getElementById('apply-loan-cond').innerText = loan.cond;
+
+                    const fc = document.getElementById('dynamic-fields-container');
+                    fc.innerHTML = '';
+                    
+                    // Render Dynamic fields
+                    if(loan.requireGPS) {
+                        fc.innerHTML += `
+                        <div class="p-3 bg-blue-50 border border-blue-200 rounded">
+                            <label class="block text-sm font-bold text-blue-800 mb-1"><i class="fas fa-map-marker-alt mr-1"></i>พิกัดตำแหน่งปัจจุบัน (บังคับ)</label>
+                            <div class="flex">
+                                <input type="text" id="df-gps" readonly required placeholder="กดปุ่มเพื่อดึงพิกัด..." class="flex-1 border-gray-300 rounded-l-md px-3 py-2 text-sm bg-gray-100">
+                                <button type="button" onclick="getGPS()" class="bg-blue-600 text-white px-3 rounded-r-md hover:bg-blue-700 text-sm"><i class="fas fa-location-crosshairs mr-1"></i>ดึงตำแหน่ง</button>
+                            </div>
+                        </div>`;
+                    }
+                    if(loan.fields && loan.fields.length > 0) {
+                        loan.fields.forEach((f, idx) => {
+                            let inputHTML = '';
+                            if(f.type === 'text') inputHTML = `<input type="text" id="df-${idx}" required class="w-full border-gray-300 rounded border p-2 text-sm">`;
+                            if(f.type === 'dropdown') {
+                                let opts = f.options.split(',').map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join('');
+                                inputHTML = `<select id="df-${idx}" required class="w-full border-gray-300 rounded border p-2 text-sm"><option value="">-- เลือก --</option>${opts}</select>`;
+                            }
+                            if(f.type === 'file') inputHTML = `<input type="file" id="df-${idx}" required class="w-full border border-gray-300 rounded p-1 text-sm bg-white">`;
+                            
+                            fc.innerHTML += `<div class="mb-3"><label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>${inputHTML}</div>`;
+                        });
+                    }
+
+                    if(fc.innerHTML === '') fc.innerHTML = '<p class="text-sm text-gray-500 italic">ไม่มีข้อมูลเพิ่มเติมที่ต้องกรอก ใช้ข้อมูลจากประวัติของคุณ</p>';
+                    
+                    document.getElementById('form-dynamic-apply').onsubmit = submitApplication;
+                    switchView('view-loan-apply');
+                });
+            });
+        }
+
+        function getGPS() {
+            if (navigator.geolocation) {
+                Swal.fire({title: 'กำลังค้นหาพิกัด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        document.getElementById('df-gps').value = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+                        Swal.close();
+                    },
+                    (err) => { Swal.fire('ผิดพลาด', 'ไม่สามารถเข้าถึงตำแหน่งได้ ต้องอนุญาต GPS ก่อนยื่นกู้', 'error'); }
+                );
+            } else { Swal.fire('ผิดพลาด', 'เบราว์เซอร์ไม่รองรับ GPS', 'error'); }
+        }
+
+        document.getElementById('dynamic-apply-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Check GPS constraint
+            if(currentApplyingLoan.requireGPS && !document.getElementById('df-gps').value) {
+                Swal.fire('ข้อควรระวัง', 'ต้องกดดึงตำแหน่ง GPS ก่อนยื่น', 'warning'); return;
+            }
+
+            Swal.fire({
+                title: 'ยืนยันการยื่นขอสินเชื่อ?',
+                text: "ข้อมูลของคุณจะถูกส่งให้เจ้าหน้าที่พิจารณา",
+                icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'กำลังส่งข้อมูล...', didOpen: () => { Swal.showLoading(); }});
+                    
+                    // Gather dynamic data (ignoring complex file uploads for this SPA pure-html simulation, using text mapping)
+                    let answers = {};
+                    if(currentApplyingLoan.requireGPS) answers['gps'] = document.getElementById('df-gps').value;
+                    if(currentApplyingLoan.fields) {
+                        currentApplyingLoan.fields.forEach((f, idx) => {
+                            let val = document.getElementById(`df-${idx}`).value;
+                            if(f.type==='file') val = "ไฟล์แนบ.png"; // Simulating file upload URL
+                            answers[f.label] = val;
+                        });
+                    }
+
+                    const appData = {
+                        uid: currentUser.uid,
+                        loanId: currentApplyingLoan.key,
+                        loanName: currentApplyingLoan.name,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        status: 1, // 1: Submitted, 2: Checking, 3: Checked/Wait Approve, 4: Approved/Rejected
+                        answers: answers,
+                        history: [{ status: 1, text: "ส่งคำขอพิจารณาแล้ว", date: new Date().getTime(), remark: "" }]
+                    };
+
+                    db.ref('applications').push(appData).then(() => {
+                        // Simulate sending email to user
+                        Swal.fire('สำเร็จ!', 'ส่งคำขอเรียบร้อยแล้ว ระบบได้ส่งการยืนยันไปที่อีเมลของคุณ', 'success').then(() => {
+                            switchView('view-borrower-history');
+                        });
+                    });
+                }
+            });
+        });
+
+        // ==========================================
+        // 6. BORROWER STATUS TRACKING
+        // ==========================================
+        function loadBorrowerHistory() {
+            const hc = document.getElementById('history-container');
+            db.ref('applications').orderByChild('uid').equalTo(currentUser.uid).on('value', snap => {
+                hc.innerHTML = '';
+                if(!snap.exists()){ hc.innerHTML = '<p class="text-gray-500">ยังไม่มีประวัติการยื่น</p>'; return; }
+                
+                snap.forEach(child => {
+                    const app = child.val();
+                    const appDate = new Date(app.timestamp).toLocaleDateString('th-TH');
+                    
+                    let statText, statColor, statIcon;
+                    if(app.status === 1) { statText = 'ส่งคำขอแล้ว'; statColor = 'bg-gray-100 text-gray-800 border-gray-300'; statIcon = 'fa-paper-plane'; }
+                    if(app.status === 2) { statText = 'กำลังตรวจสอบ'; statColor = 'bg-yellow-100 text-yellow-800 border-yellow-300'; statIcon = 'fa-clock fa-spin'; } // นาฬิกา Font Awesome
+                    if(app.status === 3) { 
+                        // Check if deadline passed for step 3 (simulating internal logic)
+                        const isLate = app.step3Deadline && (new Date().getTime() > app.step3Deadline);
+                        if(isLate) {
+                            statText = 'ล่าช้า (รอตรวจสอบอีกครั้ง)'; statColor = 'bg-red-50 text-red-600 border-red-300'; statIcon = 'fa-times-circle'; // กากบาท
+                        } else {
+                            statText = 'ตรวจสอบเสร็จสิ้น (รออนุมัติ)'; statColor = 'bg-blue-100 text-blue-800 border-blue-300'; statIcon = 'fa-clipboard-check'; 
+                        }
+                    }
+                    if(app.status === 4) { statText = 'อนุมัติ'; statColor = 'bg-green-100 text-green-800 border-green-300'; statIcon = 'fa-check-circle'; }
+                    if(app.status === 5) { statText = 'ไม่อนุมัติ'; statColor = 'bg-red-100 text-red-800 border-red-300'; statIcon = 'fa-ban'; }
+
+                    let timelineHTML = '';
+                    if(app.history) {
+                        app.history.forEach(h => {
+                            timelineHTML += `
+                            <div class="timeline-step">
+                                <div class="timeline-icon"></div>
+                                <div class="text-sm font-medium">${h.text}</div>
+                                <div class="text-xs text-gray-500">${new Date(h.date).toLocaleString('th-TH')}</div>
+                                ${h.remark ? `<div class="text-xs text-blue-600 mt-1 p-2 bg-blue-50 rounded border border-blue-100"><i class="fas fa-comment-dots mr-1"></i>หมายเหตุ: ${h.remark}</div>` : ''}
+                            </div>`;
+                        });
+                    }
+
+                    hc.innerHTML += `
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4">
+                            <div class="flex justify-between items-start mb-4 border-b pb-3">
+                                <div><h3 class="font-bold text-lg">${app.loanName}</h3><p class="text-xs text-gray-500">ยื่นเมื่อ: ${appDate}</p></div>
+                                <span class="border px-3 py-1 rounded-full text-xs font-bold ${statColor} flex items-center"><i class="fas ${statIcon} mr-1"></i> ${statText}</span>
+                            </div>
+                            <div class="pl-2 border-l-2 border-gray-100 ml-2">
+                                <h4 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-route mr-2 text-primary"></i>Status Update (เรียลไทม์)</h4>
+                                ${timelineHTML}
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        // ==========================================
+        // 7. STAFF DASHBOARD & WORKFLOW
+        // ==========================================
+        function loadStaffDashboard() {
+            switchView('view-staff-dashboard');
+            if(userRole !== 'admin') document.getElementById('menu-manage-users').style.display = 'none';
+
+            db.ref('applications').on('value', snap => {
+                const tbody = document.getElementById('staff-requests-tbody');
+                tbody.innerHTML = '';
+                let s1=0, s2=0, s4=0, s5=0;
+                
+                if(!snap.exists()) return;
+                
+                snap.forEach(child => {
+                    const app = child.val();
+                    const key = child.key;
+                    
+                    if(app.status===1||app.status===3) s1++; // Wait Update / Wait Approve
+                    if(app.status===2) s2++;
+                    if(app.status===4) s4++;
+                    if(app.status===5) s5++;
+
+                    // Note: In real app, we join user data. For speed in SPA without complex queries, we use uid.
+                    let statUI = '';
+                    if(app.status===1) statUI = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">ส่งคำขอ</span>';
+                    if(app.status===2) statUI = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"><i class="fas fa-clock mr-1 mt-0.5"></i> กำลังตรวจสอบ</span>';
+                    if(app.status===3) statUI = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">ตรวจสอบเสร็จสิ้น</span>';
+                    if(app.status===4) statUI = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">อนุมัติ</span>';
+                    if(app.status===5) statUI = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">ไม่อนุมัติ</span>';
+
+                    // Role check for update button
+                    const canUpdate = userRole === 'admin' || staffPermissions.includes('update_status') || staffPermissions.includes('all');
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-xs">UID: ${app.uid.substring(0,8)}...</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${app.loanName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(app.timestamp).toLocaleDateString('th-TH')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${statUI}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                ${canUpdate ? `<button onclick="updateAppStatus('${key}', ${app.status})" class="text-white bg-primary px-3 py-1 rounded hover:bg-blue-900 text-xs shadow"><i class="fas fa-edit mr-1"></i>อัพเดท</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                document.getElementById('stat-wait').innerText = s1;
+                document.getElementById('stat-check').innerText = s2;
+                document.getElementById('stat-appr').innerText = s4;
+                document.getElementById('stat-rej').innerText = s5;
+            });
+        }
+
+        function updateAppStatus(appKey, currentStatus) {
+            Swal.fire({
+                title: 'อัพเดทสถานะ',
+                html: `
+                    <select id="swal-status" class="w-full border p-2 rounded mb-3">
+                        <option value="2" ${currentStatus==1?'selected':''}>2. กำลังตรวจสอบเอกสาร</option>
+                        <option value="3" ${currentStatus==2?'selected':''}>3. ตรวจสอบเสร็จสิ้น (รอผล)</option>
+                        <option value="4">4. อนุมัติ</option>
+                        <option value="5">4. ไม่อนุมัติ</option>
+                    </select>
+                    <textarea id="swal-remark" placeholder="หมายเหตุ (จะส่งให้ผู้กู้เห็นในหน้า Status Update)" class="w-full border p-2 rounded h-24"></textarea>
+                `,
+                showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก',
+                preConfirm: () => { return { s: document.getElementById('swal-status').value, r: document.getElementById('swal-remark').value } }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const newStat = parseInt(result.value.s);
+                    const remark = result.value.r;
+                    let textStat = "";
+                    if(newStat===2) textStat="กำลังตรวจสอบเอกสารและพิจารณา";
+                    if(newStat===3) textStat="ตรวจสอบเอกสารเสร็จสิ้น";
+                    if(newStat===4) textStat="อนุมัติสินเชื่อเรียบร้อย";
+                    if(newStat===5) textStat="ไม่อนุมัติสินเชื่อ";
+
+                    // Add to history array in DB
+                    db.ref('applications/'+appKey).once('value').then(snap => {
+                        let hist = snap.val().history || [];
+                        hist.push({ status: newStat, text: textStat, remark: remark, date: new Date().getTime() });
+                        
+                        let updateData = { status: newStat, history: hist };
+                        // Deadline logic for step 3 (simulate 3 days)
+                        if(newStat===3) updateData.step3Deadline = new Date().getTime() + (3 * 24 * 60 * 60 * 1000); 
+
+                        db.ref('applications/'+appKey).update(updateData).then(() => {
+                            Swal.fire('สำเร็จ', 'อัพเดทสถานะแล้ว ระบบส่งแจ้งเตือนเรียลไทม์แล้ว', 'success');
+                        });
+                    });
+                }
+            });
+        }
+
+        function exportReport() {
+            const element = document.getElementById('report-content');
+            html2pdf().from(element).set({
+                margin: 10, filename: 'elis-report.pdf',
+                html2canvas: { scale: 2 }, jsPDF: { orientation: 'landscape' }
+            }).save();
+        }
+
+        // ==========================================
+        // 8. STAFF ADD LOAN & BUILDER
+        // ==========================================
+        function addDynamicField() {
+            builderFields.push({ type: 'text', label: '' });
+            renderBuilder();
+        }
+
+        function renderBuilder() {
+            const c = document.getElementById('form-builder-container');
+            c.innerHTML = '';
+            builderFields.forEach((f, idx) => {
+                c.innerHTML += `
+                <div class="flex gap-2 items-center bg-white p-2 rounded border border-gray-200">
+                    <select onchange="builderFields[${idx}].type=this.value; renderBuilder();" class="border rounded p-1 text-sm bg-gray-50">
+                        <option value="text" ${f.type==='text'?'selected':''}>Text (กรอกเอง)</option>
+                        <option value="dropdown" ${f.type==='dropdown'?'selected':''}>Dropdown (ตัวเลือก)</option>
+                        <option value="file" ${f.type==='file'?'selected':''}>File / Image</option>
+                    </select>
+                    <input type="text" placeholder="ตั้งคำถาม / ชื่อฟิลด์" value="${f.label}" onchange="builderFields[${idx}].label=this.value" class="flex-1 border rounded p-1 text-sm">
+                    ${f.type==='dropdown' ? `<input type="text" placeholder="คั่นด้วยลูกน้ำ Ex: ก,ข,ค" value="${f.options||''}" onchange="builderFields[${idx}].options=this.value" class="w-1/3 border rounded p-1 text-sm text-blue-600">` : ''}
+                    <button type="button" onclick="builderFields.splice(${idx},1); renderBuilder();" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-trash"></i></button>
+                </div>`;
+            });
+        }
+
+        function submitNewLoan() {
+            const lData = {
+                name: document.getElementById('loan-name').value,
+                id: document.getElementById('loan-id').value || "LN" + Date.now().toString().slice(-6),
+                limit: document.getElementById('loan-limit').value,
+                desc: document.getElementById('loan-desc').value,
+                cond: document.getElementById('loan-cond').value,
+                start: document.getElementById('loan-start').value,
+                end: document.getElementById('loan-end').value,
+                requireGPS: document.getElementById('req-gps').checked,
+                fields: builderFields,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            };
+            db.ref('loans').push(lData).then(() => {
+                Swal.fire('สำเร็จ', 'สร้างสินเชื่อใหม่เข้าระบบแล้ว', 'success');
+                document.getElementById('form-add-loan').reset();
+                builderFields = []; renderBuilder();
+                switchView('view-staff-dashboard');
+            });
+        }
+
+        // ==========================================
+        // 9. MANAGE STAFF & RBAC & EMAIL SIMULATION
+        // ==========================================
+        function loadStaffUsers() {
+            if(userRole !== 'admin') { Swal.fire('ปฏิเสธ', 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'error'); return; }
+            switchView('view-staff-users');
+            db.ref('staff').on('value', snap => {
+                const tb = document.getElementById('staff-users-tbody');
+                tb.innerHTML = '';
+                if(!snap.exists()) return;
+                snap.forEach(child => {
+                    const s = child.val();
+                    const perms = (s.permissions||[]).join(', ');
+                    tb.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">${s.username}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${s.name} <br><span class="text-xs text-gray-400">${s.email} | ${s.phone}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${s.position}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-blue-600">${perms}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                ${s.locked ? '<span class="px-2 py-1 rounded bg-red-100 text-red-800 text-xs font-bold">ถูกล็อก</span>' : '<span class="px-2 py-1 rounded bg-green-100 text-green-800 text-xs">ปกติ</span>'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                <button onclick="toggleLockStaff('${child.key}', ${s.locked})" class="${s.locked?'bg-green-500':'bg-red-500'} text-white px-2 py-1 rounded text-xs">
+                                    ${s.locked?'ปลดล็อก':'ล็อกบัญชี'}
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        function toggleLockStaff(key, currentStatus) {
+            db.ref('staff/'+key).update({locked: !currentStatus});
+        }
+
+        function openAddStaffModal() {
+            Swal.fire({
+                title: 'เพิ่มเจ้าหน้าที่ใหม่', width: 600,
+                html: `
+                    <div class="text-left space-y-3">
+                        <input id="ns-user" placeholder="Username" class="w-full border p-2 rounded">
+                        <input id="ns-pass" placeholder="Password" class="w-full border p-2 rounded">
+                        <input id="ns-name" placeholder="ชื่อ-สกุล" class="w-full border p-2 rounded">
+                        <input id="ns-phone" placeholder="เบอร์โทรศัพท์" class="w-full border p-2 rounded">
+                        <input id="ns-email" type="email" placeholder="อีเมล (สำหรับแจ้งเตือนและ OTP)" class="w-full border p-2 rounded">
+                        <input id="ns-pos" placeholder="ตำแหน่ง" class="w-full border p-2 rounded">
+                        <div class="border p-3 rounded bg-gray-50">
+                            <label class="block font-bold mb-2 text-sm">สิทธิ์การใช้งาน:</label>
+                            <label><input type="checkbox" id="ns-p1" value="update_status" class="mr-1"> อัพเดทสถานะผู้กู้</label><br>
+                            <label><input type="checkbox" id="ns-p2" value="add_loan" class="mr-1"> เพิ่มสินเชื่อ</label>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'บันทึก', preConfirm: () => {
+                    let p = [];
+                    if(document.getElementById('ns-p1').checked) p.push('update_status');
+                    if(document.getElementById('ns-p2').checked) p.push('add_loan');
+                    return {
+                        username: document.getElementById('ns-user').value, password: document.getElementById('ns-pass').value,
+                        name: document.getElementById('ns-name').value, phone: document.getElementById('ns-phone').value,
+                        email: document.getElementById('ns-email').value, position: document.getElementById('ns-pos').value,
+                        permissions: p, locked: false
+                    }
+                }
+            }).then(res => {
+                if(res.isConfirmed) {
+                    db.ref('staff').push(res.value).then(()=>{ Swal.fire('สำเร็จ', 'เพิ่มเจ้าหน้าที่แล้ว', 'success'); });
+                }
+            });
+        }
+
+        function simulateEmailAlert(email, name, uid) {
+            // ระบบแจ้งเตือนทางอีเมลและปุ่มล็อกไอดี (เนื่องจาก HTML ล้วนไม่สามารถส่งเมล์ได้ จึงใช้ SweetAlert จำลองให้เห็นภาพว่าฝั่ง Backend ส่ง HTML Format ไปยังไง)
+            console.log(`Sending Email to: ${email}`);
+            setTimeout(() => {
+                Swal.fire({
+                    title: '📧 จำลองอีเมลแจ้งเตือน (ส่งไปที่เจ้าหน้าที่)',
+                    html: `
+                        <div style="text-align:left; border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                            <h3 style="color:#1e3a8a;">แจ้งเตือนการเข้าสู่ระบบใหม่</h3>
+                            <p>เรียนคุณ ${name},</p>
+                            <p>มีการเข้าสู่ระบบ e-LIS ผ่านไอพี: <strong>192.168.1.1</strong></p>
+                            <p style="color:red; font-size: 12px;">หากคุณไม่ได้เป็นคนเข้าสู่ระบบ โปรดคลิกปุ่มต่อไปนี้เพื่อล็อกบัญชีทันที</p>
+                            <button onclick="toggleLockStaff('${uid}', false); Swal.close(); Swal.fire('บัญชีถูกล็อก', 'ระงับบัญชีเรียบร้อย กรุณาติดต่อ Admin เพื่อปลดล็อก', 'info');" style="background:red; color:white; border:none; padding:8px 15px; border-radius:3px; cursor:pointer;">ล็อกการใช้งานบัญชีนี้</button>
+                        </div>
+                    `,
+                    icon: 'info', confirmButtonText: 'รับทราบ (ปิดหน้าต่าง)'
+                });
+            }, 1000);
+        }
+
+    </script>
+</body>
+</html>
