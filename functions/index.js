@@ -8,8 +8,8 @@ admin.initializeApp();
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'your-email@gmail.com', // อีเมลระบบของคุณ
-        pass: 'your-app-password'     // App Password จาก Google Account
+        user: 'wpowpoi38@gmail.com', // อีเมลระบบของคุณ
+        pass: 'kfcpfseenhujckvm'     // App Password จาก Google Account
     }
 });
 
